@@ -1,12 +1,25 @@
 'use strict';
 
 export class MainPageController {
-  constructor() {
+  constructor(
+    private $timeout: angular.ITimeoutService
+  ) {
     console.log('test');
+    
+    
   }
 
-  $onInit() {
+  async $onInit() {
     console.log('init');
+    
+    let value = await this.getValues();
+    console.log('value:', value);
+  }
+  
+  getValues() : Promise<string> {
+    return new Promise(resolve=>{
+      resolve('test');
+    });
   }
 }
 
