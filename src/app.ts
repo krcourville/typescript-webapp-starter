@@ -1,7 +1,8 @@
-import {MainPage} from './pages/mainPage';
+'use strict';
 
+import ng = angular;
+import Pages from './register-pages';
 
-angular
-    .module('app', [])
-    .component('mainPage', MainPage);
-    console.log('TEST', MainPage);
+const App = ng.module('app', []);
+
+Pages.register(App);
