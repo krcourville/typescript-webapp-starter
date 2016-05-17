@@ -53,7 +53,7 @@ gulp.task('app-js', function () {
     });
     var tsFiles = [
         './src/app.ts',
-        './typings/main.d.ts'
+        './typings/index.d.ts'
     ];
     var b = browserify(tsFiles, {
             debug: true,
