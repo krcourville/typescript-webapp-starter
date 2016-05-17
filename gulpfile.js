@@ -1,3 +1,5 @@
+require('es6-shim');
+
 'use strict';
 
 var
@@ -14,11 +16,14 @@ var
     tsify = require('tsify'),
     babelify = require('babelify'),
     browserSync = require('browser-sync').create(),
+    templateCache = require('gulp-angular-templatecache'),
     runSequence = require("run-sequence"),
     del = require("del"),
     watchify = require('watchify'),
     watch = require('gulp-watch'),
     sass = require('gulp-sass'),
+    fs = require('fs'),
+    path = require('path'),
 
     debug = true,
     isWatching = false
@@ -40,17 +45,24 @@ var cfg = {
     html: {
         index: './app/index.html'
     },
+    templates: [
+        './app/**/*.html',
+        '!./app/index.html'
+    ],
     sass: './app/**/*.scss',
     vendor: {
         js: [
-            './node_modules/angular/angular.js'
+            './node_modules/angular/angular.js',
+            './node_modules/angular-animate/angular-animate.js',
+            './node_modules/angular-aria/angular-aria.js',
+            './node_modules/angular-material/angular-material.js',
         ]
     }
 };
 
 gulp.task('default', ['cleanbuild']);
 
-gulp.task('build', ['copy', 'sass', 'vendor-js', 'app-js']);
+gulp.task('build', ['copy', 'sass', 'vendor-js', 'templates', 'app-js']);
 
 gulp.task('clean', function () {
     return del([cfg.outputPath]);
@@ -66,15 +78,33 @@ gulp.task('copy', function () {
         .pipe(gulp.dest(cfg.outputPath));
 });
 
+gulp.task('templates', function () {
+    return gulp.src(cfg.templates)
+        .pipe(templateCache({
+            module: 'app',
+            transformUrl: function(urlIn){                
+                return path
+                    .basename(urlIn)
+                    .toLowerCase();
+            }
+        }))
+        .pipe(gulp.dest(cfg.outputPath));
+});
+
 gulp.task('watch', ['browsersync'], function () {
     gulp.watch(cfg.html.index, ['copy']);
     gulp.watch(cfg.sass, ['sass']);
+    gulp.watch(cfg.templates, ['templates']);
 
     var distfiles = [
-        './dist/*.[js|html]'
+        './dist/*.js',
+        './dist/*.html'
     ];
 
-    gulp.watch(distfiles).on('change', browserSync.reload);
+    gulp.watch(distfiles).on('change', function () {
+        console.log('Dist files modified');
+        browserSync.reload();
+    });
 });
 
 gulp.task('serve', function () {
@@ -97,7 +127,11 @@ gulp.task('browsersync', function () {
 gulp.task('sass', function () {
     var stream = gulp.src(cfg.sass)
         .pipe(sourcemaps.init())
-        .pipe(sass().on('error', sass.logError))
+        .on('error', function (err) {
+            console.log(err.message);
+            this.emit('end');
+        })
+        .pipe(sass())
         .pipe(concat('app.css'))
         .pipe(sourcemaps.write('./'))
         .pipe(gulp.dest(cfg.outputPath));
@@ -109,8 +143,12 @@ gulp.task('sass', function () {
 });
 
 gulp.task('vendor-js', function () {
+    checkfiles(cfg.vendor.js);
+
     return gulp.src(cfg.vendor.js)
+        .pipe(sourcemaps.init())
         .pipe(concat('vendor.js'))
+        .pipe(sourcemaps.write('./'))
         .pipe(gulp.dest(cfg.outputPath));
 });
 
@@ -148,4 +186,12 @@ gulp.task('app-js', function () {
 
 function onError(err) {
     console.error(err.toString());
+}
+
+function checkfiles(files) {
+    files.forEach(function (file) {
+        if (!fs.existsSync(file)) {
+            console.warn('Source file not found: ', file);
+        }
+    });
 }

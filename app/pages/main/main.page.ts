@@ -7,8 +7,7 @@ class MainPageController implements IMainPageController {
 }
 
 export const MainPage: ng.IComponentOptions = {
-  template: `
-    <p class="main-page">Main Page</p>
-  `
+  templateUrl: 'main.page.html',
+  controller: MainPageController
 };
 
