@@ -1,0 +1,8 @@
+@import '../../global';
+
+.main-page{
+    @include rounded-corner(5px);
+    border: 1px solid black;
+    padding: 5px;
+    background-color: yellow;
+}

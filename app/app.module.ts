@@ -1,0 +1,1 @@
+export const App:ng.IModule = angular.module('app', []);

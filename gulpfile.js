@@ -13,78 +13,137 @@ var
     source = require('vinyl-source-stream'),
     tsify = require('tsify'),
     babelify = require('babelify'),
+    browserSync = require('browser-sync').create(),
+    runSequence = require("run-sequence"),
+    del = require("del"),
+    watchify = require('watchify'),
+    watch = require('gulp-watch'),
+    sass = require('gulp-sass'),
 
-    debug = true
+    debug = true,
+    isWatching = false
     ;
 
 var cfg = {
-    distroot: './dist'
+    outputPath: './dist',
+    outfiles: {
+        appjs: 'app.js',
+        vendorjs: 'vendor.js',
+        appcss: 'app.css'
+    },
+    ts: {
+        files: [
+            './typings/index.d.ts',
+            './app/index.ts'
+        ]
+    },
+    html: {
+        index: './app/index.html'
+    },
+    sass: './app/**/*.scss',
+    vendor: {
+        js: [
+            './node_modules/angular/angular.js'
+        ]
+    }
 };
 
-gulp.task('default', ['build']);
+gulp.task('default', ['cleanbuild']);
 
-gulp.task('build', ['copy', 'vendor-js', 'app-js']);
+gulp.task('build', ['copy', 'sass', 'vendor-js', 'app-js']);
+
+gulp.task('clean', function () {
+    return del([cfg.outputPath]);
+});
+
+gulp.task('cleanbuild', function (done) {
+    runSequence('clean', 'build', done);
+});
 
 gulp.task('copy', function () {
     return gulp
-        .src('./src/index.html')
-        .pipe(gulp.dest(cfg.distroot));
+        .src(cfg.html.index)
+        .pipe(gulp.dest(cfg.outputPath));
 });
 
+gulp.task('watch', ['browsersync'], function () {
+    gulp.watch(cfg.html.index, ['copy']);
+    gulp.watch(cfg.sass, ['sass']);
 
-gulp.task('less', function () {
-    // content
+    var distfiles = [
+        './dist/*.[js|html]'
+    ];
+
+    gulp.watch(distfiles).on('change', browserSync.reload);
+});
+
+gulp.task('serve', function () {
+    isWatching = true;
+
+    runSequence(
+        'cleanbuild',
+        'watch'
+    );
+});
+
+gulp.task('browsersync', function () {
+    browserSync.init({
+        server: {
+            baseDir: cfg.outputPath
+        }
+    });
+});
+
+gulp.task('sass', function () {
+    var stream = gulp.src(cfg.sass)
+        .pipe(sourcemaps.init())
+        .pipe(sass().on('error', sass.logError))
+        .pipe(concat('app.css'))
+        .pipe(sourcemaps.write('./'))
+        .pipe(gulp.dest(cfg.outputPath));
+
+    if (isWatching) {
+        stream = stream.pipe(browserSync.stream());
+    }
+    return stream;
 });
 
 gulp.task('vendor-js', function () {
-    var files = [
-        './node_modules/angular/angular.js'
-    ];
-
-    return gulp.src(files)
+    return gulp.src(cfg.vendor.js)
         .pipe(concat('vendor.js'))
-        .pipe(gulp.dest(cfg.distroot));
+        .pipe(gulp.dest(cfg.outputPath));
 });
 
 gulp.task('app-js', function () {
-    var tsProject = ts.createProject(__dirname + '/tsconfig.json', {
+    var browserifyOptions = {
+        debug: true,
+        loadMaps: true,
         sortOutput: true,
         noExternalResolve: true
-    });
-    var tsFiles = [
-        './src/app.ts',
-        './typings/index.d.ts'
-    ];
-    var b = browserify(tsFiles, {
-            debug: true,
-            loadMaps: true
-        })
+    };
+
+    var b = browserify(cfg.ts.files, browserifyOptions)
         .plugin(tsify, {
-            target: 'es6'
-        })
-        .transform(babelify, {
-            plugins: ['transform-runtime'],
-            presets: ['es2015'],
-            extensions: ['*.ts']
+            target: 'es5'
         });
 
-    return b.bundle()
-        .on('error', gutil.log)
-        .pipe(source('app.js'))
-        .pipe(buffer())
-        .pipe(sourcemaps.init({loadMaps:true}))
-        .pipe(sourcemaps.write('./'))
-        .pipe(gulp.dest(cfg.distroot));
+    if (isWatching) {
+        b = watchify(b);
+        b.on('update', bundle);
+        b.on('log', gutil.log);
+    }
 
-    // return gulp.src(files, { base: "./" })
-    //     .pipe(ts(tsProject))
-    //     .pipe(babel({
-    //         plugins: ['transform-runtime'],
-    //         presets: ['es2015']
-    //     }))
-    //     .pipe(browserify())
-    //     .pipe(concat('app.js'))
-    //     .pipe(gulp.dest(cfg.distroot));
+    return bundle();
+
+    function bundle() {
+        return b.bundle()
+            .on('error', gutil.log)
+            .pipe(source(cfg.outfiles.appjs))
+            .pipe(buffer())
+            .pipe(sourcemaps.init({ loadMaps: true }))
+            .pipe(sourcemaps.write('./'))
+            .pipe(gulp.dest(cfg.outputPath));
+    }
 });
 
 function onError(err) {
