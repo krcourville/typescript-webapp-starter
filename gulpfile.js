@@ -4,8 +4,6 @@ require('es6-shim');
 
 var
     gulp = require('gulp'),
-    ts = require('gulp-typescript'),
-    babel = require('gulp-babel'),
     rename = require('gulp-rename'),
     concat = require('gulp-concat'),
     sourcemaps = require('gulp-sourcemaps'),
@@ -13,8 +11,7 @@ var
     gutil = require('gulp-util'),
     buffer = require('vinyl-buffer'),
     source = require('vinyl-source-stream'),
-    tsify = require('tsify'),
-    babelify = require('babelify'),
+    tsify = require('tsify'),    
     browserSync = require('browser-sync').create(),
     templateCache = require('gulp-angular-templatecache'),
     runSequence = require("run-sequence"),
